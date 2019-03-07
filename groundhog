@@ -1,0 +1,92 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+
+import sys, math
+from usage import display_usage # just display the usage
+from WeatherDatas import * # a little basic class to store infos
+
+STOP = "STOP" # global const to set the final keyword to get from the input
+
+def compute_temp_inc_average(values, period):
+    # get the average temp evolution during the given period
+    if len(values) <= period:
+        return "nan"
+    total = 0
+    last = values[-period - 1]
+
+    for val in values[-period:]:
+        n = val - last
+        if n > 0:
+            total += n
+        last = val
+    average = total / period
+    if average < 0:
+        average = 0
+    return "{:.2f}".format(round(average, 2))
+
+def compute_relative_temp_evolution(values, period):
+    # get the percentage of evolution of the temperature
+    # between the last value and the value [-period]
+    if len(values) <= period:
+        return "nan"
+    return str(round((values[-1] / values[-period - 1]) * 100 - 100))
+
+def compute_standard_deviation(values, period): # look at the standard deviation
+    if len(values) < period:
+        return "nan"
+    mu = sum(values[-period:]) / period
+    variance = 0
+
+    for val in values[-period:]:
+        variance += (val - mu) ** 2
+    return "{:.2f}".format(round(math.sqrt(variance / period), 2))
+
+def analyze_value(datas, x): # compute all required values and print them
+    datas.values.append(x)
+
+    temp_inc_average = compute_temp_inc_average(datas.values, datas.period)
+    relative_temp_evolution = compute_relative_temp_evolution(datas.values,
+                                                              datas.period)
+    standard_deviation = compute_standard_deviation(datas.values, datas.period)
+    res = float(relative_temp_evolution)
+
+    print("g=%s\tr=%s%%\ts=%s" % (temp_inc_average, relative_temp_evolution,
+                                  standard_deviation), end='')
+    if (res < 0 and datas.last_temp_percentage > 0) or \
+    (res > 0 and datas.last_temp_percentage < 0):
+        print("\ta switch occurs")
+        datas.switches += 1
+    else:
+        print("")
+    datas.last_temp_percentage = res
+
+def get_values(period): # Main loop of the program, get the input until STOP keyword
+    datas = WeatherDatas(period)
+    is_stopped = False
+
+    while is_stopped == False:
+        line = input()
+        if line == STOP:
+            is_stopped = True
+        else:
+#            print('[' + line + ']') # DEBUG ONLY
+            try:
+                analyze_value(datas, float(line))
+            except ValueError as e:
+                sys.stderr.write(str(e) + "You must give a float number.\n")
+                sys.exit(84)
+    print("Global tendency switched %d times" % datas.switches)
+    return 0
+
+def main():
+    # TODO --> aberrations
+    if len(sys.argv) != 2 or "-h" in sys.argv:
+        return display_usage(84)
+    try:
+        return get_values(int(sys.argv[1]))
+    except ValueError:
+        return display_usage(84)
+    return 0
+
+if __name__ == "__main__":
+   main()
